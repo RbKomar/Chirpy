@@ -15,6 +15,7 @@ import (
 type apiConfig struct {
 	fileserverHits atomic.Int32
 	dbQueries      *database.Queries
+	platform       string
 }
 
 func main() {
@@ -22,6 +23,7 @@ func main() {
 	const filePathRoot = "."
 	const port = "8080"
 	dbURL := os.Getenv("DB_URL")
+	platform := os.Getenv("PLATFORM")
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatalln("Connection to db doesn't work.")
@@ -31,6 +33,7 @@ func main() {
 	apiCfg := apiConfig{
 		fileserverHits: atomic.Int32{},
 		dbQueries:      dbQueries,
+		platform:       platform,
 	}
 	mux := http.NewServeMux()
 	handler := apiCfg.middlewareMetricInc(http.FileServer(http.Dir(filePathRoot)))
@@ -41,6 +44,7 @@ func main() {
 	mux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
 
 	mux.HandleFunc("POST /api/validate_chirp", apiCfg.handlerValidate)
+	mux.HandleFunc("POST /api/users", apiCfg.handlerCreateUsers)
 
 	server := &http.Server{
 		Addr:    ":" + port,
