@@ -7,3 +7,13 @@ VALUES (
     $1,
     $2)
 RETURNING *;
+
+
+-- name: RetrieveAllChirps :many
+SELECT * FROM chirps
+ORDER BY created_at;
+
+
+-- name: RetrieveChirpByID :one
+SELECT * FROM chirps
+WHERE id=$1;

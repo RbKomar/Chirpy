@@ -19,6 +19,31 @@ type Chirp struct {
 	UserID    uuid.UUID `json:"user_id"`
 }
 
+func MapDBchirpToChirp(chirp database.Chirp) Chirp {
+	return Chirp{
+		ID:        chirp.ID,
+		CreatedAt: chirp.CreatedAt.Time,
+		UpdatedAt: chirp.UpdatedAt.Time,
+		Body:      chirp.Body,
+		UserID:    chirp.UserID,
+	}
+}
+
+func (cfg *apiConfig) handlerChirpsGetAll(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	chirps, err := cfg.dbQueries.RetrieveAllChirps(r.Context())
+	if err != nil {
+		RespondWithError(w, http.StatusInternalServerError, "Couldn't retrieve all chirps", err)
+		return
+	}
+	var jsonChirps []Chirp
+	for _, chirp := range chirps {
+		jsonChirps = append(jsonChirps, MapDBchirpToChirp(chirp))
+	}
+
+	RespondWithJson(w, http.StatusOK, jsonChirps)
+}
+
 func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Body   string    `json:"body"`
@@ -45,13 +70,7 @@ func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request
 		RespondWithError(w, http.StatusInternalServerError, "Couldn't add chirp to DB.", err)
 		return
 	}
-	chirpJson := Chirp{
-		ID:        chirp.ID,
-		CreatedAt: chirp.CreatedAt.Time,
-		UpdatedAt: chirp.UpdatedAt.Time,
-		Body:      chirp.Body,
-		UserID:    chirp.UserID,
-	}
+	chirpJson := MapDBchirpToChirp(chirp)
 	RespondWithJson(w, http.StatusCreated, chirpJson)
 
 }
