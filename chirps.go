@@ -29,11 +29,25 @@ func MapDBchirpToChirp(chirp database.Chirp) Chirp {
 	}
 }
 
+func (cfg *apiConfig) handlerChirpsGetByID(w http.ResponseWriter, r *http.Request) {
+	chirpID := r.PathValue("chirpID")
+	id, err := uuid.Parse(chirpID)
+	if err != nil {
+		RespondWithError(w, http.StatusInternalServerError, "couldn't parse path to id", err)
+	}
+	chirp, err := cfg.dbQueries.RetrieveChirpByID(r.Context(), id)
+	if err != nil {
+		RespondWithError(w, http.StatusNotFound, "couldn't retrieve chirp from db", err)
+		return
+	}
+	RespondWithJson(w, http.StatusOK, MapDBchirpToChirp(chirp))
+}
+
 func (cfg *apiConfig) handlerChirpsGetAll(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	chirps, err := cfg.dbQueries.RetrieveAllChirps(r.Context())
 	if err != nil {
-		RespondWithError(w, http.StatusInternalServerError, "Couldn't retrieve all chirps", err)
+		RespondWithError(w, http.StatusInternalServerError, "couldn't retrieve all chirps", err)
 		return
 	}
 	var jsonChirps []Chirp
@@ -54,7 +68,7 @@ func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request
 	decoder := json.NewDecoder(r.Body)
 	params := &parameters{}
 	if err := decoder.Decode(params); err != nil {
-		RespondWithError(w, http.StatusInternalServerError, "can't decode params", err)
+		RespondWithError(w, http.StatusInternalServerError, "couldn't decode params", err)
 		return
 	}
 
@@ -67,7 +81,7 @@ func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request
 		UserID: params.UserID,
 	})
 	if err != nil {
-		RespondWithError(w, http.StatusInternalServerError, "Couldn't add chirp to DB.", err)
+		RespondWithError(w, http.StatusInternalServerError, "couldn't add chirp to DB.", err)
 		return
 	}
 	chirpJson := MapDBchirpToChirp(chirp)
