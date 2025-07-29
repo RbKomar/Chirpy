@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/RbKomar/Chirpy/internal/auth"
 	"github.com/RbKomar/Chirpy/internal/database"
 	"github.com/google/uuid"
 )
@@ -60,15 +61,24 @@ func (cfg *apiConfig) handlerChirpsGetAll(w http.ResponseWriter, r *http.Request
 
 func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Body   string    `json:"body"`
-		UserID uuid.UUID `json:"user_id"`
+		Body string `json:"body"`
 	}
 	w.Header().Set("Content-Type", "application/json")
 
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		RespondWithError(w, http.StatusInternalServerError, "Couldn't retrieve bearer token", err)
+		return
+	}
+	userID, err := auth.ValidateJWT(token, cfg.JWTSecret)
+	if err != nil {
+		RespondWithError(w, http.StatusUnauthorized, "Couldn't authenticate with JWT", err)
+		return
+	}
 	decoder := json.NewDecoder(r.Body)
 	params := &parameters{}
 	if err := decoder.Decode(params); err != nil {
-		RespondWithError(w, http.StatusInternalServerError, "couldn't decode params", err)
+		RespondWithError(w, http.StatusInternalServerError, "Couldn't decode params", err)
 		return
 	}
 
@@ -78,16 +88,16 @@ func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request
 	}
 	chirp, err := cfg.dbQueries.CreateChirp(r.Context(), database.CreateChirpParams{
 		Body:   censoredMessage,
-		UserID: params.UserID,
+		UserID: userID,
 	})
 	if err != nil {
-		RespondWithError(w, http.StatusInternalServerError, "couldn't add chirp to DB.", err)
+		RespondWithError(w, http.StatusInternalServerError, "Couldn't add chirp to DB.", err)
 		return
 	}
 	chirpJson := MapDBchirpToChirp(chirp)
 	RespondWithJson(w, http.StatusCreated, chirpJson)
-
 }
+
 func (cfg *apiConfig) HandleValidation(w http.ResponseWriter, message string) (string, error) {
 	if len(message) > 140 {
 		RespondWithError(w, 400, "message is too long", nil)
